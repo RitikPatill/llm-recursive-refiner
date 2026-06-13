@@ -1,0 +1,13 @@
+[project]
+name = "llm-recursive-refiner"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.28.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+    "pydantic>=2.7.0",
+]
+
+[project.scripts]
+refine = "llm_recursive_refiner.__main__:main"
