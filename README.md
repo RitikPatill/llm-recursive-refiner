@@ -16,11 +16,14 @@ Recursive self-refinement (RSR) is an iterative prompting technique where a lang
 llm-recursive-refiner/
 ├── src/
 │   └── llm_recursive_refiner/
-│       ├── __init__.py      # package version (0.1.0)
-│       └── __main__.py      # CLI entry point (stub, implemented in M2+)
+│       ├── __init__.py      # package exports: Refiner, RoundResult, CritiqueResult
+│       ├── __main__.py      # CLI entry point (stub, wired in M3)
+│       ├── models.py        # Pydantic models: CritiqueResult, RoundResult
+│       └── refiner.py       # Core Refiner class (generate → critique → revise loop)
 ├── tests/
 │   ├── __init__.py
-│   └── test_placeholder.py
+│   ├── test_placeholder.py
+│   └── test_refiner.py      # Unit tests for Refiner (all mocked, no API key needed)
 ├── requirements.txt         # pinned deps: anthropic, rich, typer, pydantic
 ├── pyproject.toml
 ├── LICENSE                  # MIT
@@ -37,7 +40,7 @@ A PyPI package will be published in a later milestone.
 
 ## Quick start
 
-> The CLI interface below is the planned invocation. The entry point is a stub until M2 lands.
+> The CLI interface below is the planned invocation. The entry point (`__main__.py`) is a stub until M3 wires it to the `Refiner` class.
 
 ```bash
 python -m llm_recursive_refiner \
@@ -55,20 +58,34 @@ python -m llm_recursive_refiner \
 
 Each round is appended to a `.jsonl` log file for reproducibility. The terminal renders a live score bar and a final unified diff showing total changes across all revisions.
 
-## What works now (M1)
+## What works now (M2)
 
-- `src/` package layout with `llm_recursive_refiner` importable as a module (`v0.1.0`)
-- Dependency set locked in `requirements.txt`: `anthropic==0.28.0`, `rich==13.7.1`, `typer==0.12.3`, `pydantic==2.7.1`
-- Stub entry point (`python -m llm_recursive_refiner`) runs without error
-- MIT license, `.gitignore`, and `pyproject.toml` in place
-- Placeholder test suite under `tests/`
+- **`Refiner` class** in `src/llm_recursive_refiner/refiner.py` — fully functional generate → critique → revise loop
+- **Pydantic models** (`CritiqueResult`, `RoundResult`) in `models.py` as the shared data contract
+- **JSONL logging** — pass `log_path=` to `Refiner` to get one JSON line per round
+- **Early stopping** — loop halts as soon as `score >= threshold`; `RoundResult.stopped_early` is `True`
+- **5 unit tests** in `tests/test_refiner.py` — all mocked, no API key required to run
+
+```python
+from llm_recursive_refiner import Refiner
+
+refiner = Refiner(max_iters=4, threshold=0.8, log_path="run.jsonl")
+results = refiner.run("Write a short essay about photosynthesis.")
+for r in results:
+    print(f"Round {r.iteration}: score={r.critique.score:.2f}")
+print(results[-1].revision)
+```
+
+### Previously (M1)
+
+- `src/` package layout, dependency set locked in `requirements.txt`, stub entry point, MIT license
 
 ## Project status
 
 | Milestone | Description | Status |
 |-----------|-------------|--------|
 | M1 | Scaffold + README | ✅ Done |
-| M2 | Core data models + Anthropic client | Planned |
-| M3 | Refine loop + JSONL logging | Planned |
+| M2 | Core refine loop + data models | ✅ Done |
+| M3 | Rich terminal UI + CLI wiring | Planned |
 | M4 | Rich terminal UI + `--compare` flag | Planned |
 | M5 | Task presets + packaging | Planned |
