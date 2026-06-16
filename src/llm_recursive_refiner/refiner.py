@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 
 import anthropic
 
@@ -16,12 +17,14 @@ class Refiner:
         threshold: float = 0.8,
         log_path: str | None = None,
         client: anthropic.Anthropic | None = None,
+        on_round: Callable[[RoundResult], None] | None = None,
     ):
         self.model = model
         self.max_iters = max_iters
         self.threshold = threshold
         self.log_path = log_path
         self.client = client if client is not None else anthropic.Anthropic()
+        self.on_round = on_round
 
     def run(self, prompt: str) -> list[RoundResult]:
         results: list[RoundResult] = []
@@ -42,6 +45,9 @@ class Refiner:
 
             if self.log_path:
                 self._append_log(self.log_path, round_result)
+
+            if self.on_round:
+                self.on_round(round_result)
 
             if stopped_early:
                 break

@@ -10,4 +10,4 @@ dependencies = [
 ]
 
 [project.scripts]
-refine = "llm_recursive_refiner.__main__:main"
+refine = "llm_recursive_refiner.__main__:app"
