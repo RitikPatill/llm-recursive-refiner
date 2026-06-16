@@ -17,13 +17,14 @@ llm-recursive-refiner/
 ├── src/
 │   └── llm_recursive_refiner/
 │       ├── __init__.py      # package exports: Refiner, RoundResult, CritiqueResult
-│       ├── __main__.py      # CLI entry point (stub, wired in M3)
+│       ├── __main__.py      # Typer CLI entry point
 │       ├── models.py        # Pydantic models: CritiqueResult, RoundResult
 │       └── refiner.py       # Core Refiner class (generate → critique → revise loop)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_placeholder.py
-│   └── test_refiner.py      # Unit tests for Refiner (all mocked, no API key needed)
+│   ├── test_refiner.py      # Unit tests for Refiner (all mocked, no API key needed)
+│   └── test_cli.py          # Unit tests for CLI (all mocked, no API key needed)
 ├── requirements.txt         # pinned deps: anthropic, rich, typer, pydantic
 ├── pyproject.toml
 ├── LICENSE                  # MIT
@@ -40,14 +41,35 @@ A PyPI package will be published in a later milestone.
 
 ## Quick start
 
-> The CLI interface below is the planned invocation. The entry point (`__main__.py`) is a stub until M3 wires it to the `Refiner` class.
-
 ```bash
+export ANTHROPIC_API_KEY=sk-...
+
 python -m llm_recursive_refiner \
   --prompt "Write a short essay on photosynthesis" \
   --max-iters 4 \
   --threshold 0.8
+
+# or read from a file
+python -m llm_recursive_refiner --file draft.txt --output refined.txt --log run.jsonl
+
+# or pipe from stdin
+echo "My rough draft text" | python -m llm_recursive_refiner
 ```
+
+### CLI flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--prompt` / `-p` | — | Input prompt text |
+| `--file` / `-f` | — | Path to file containing the prompt |
+| `--max-iters` | `5` | Maximum refinement iterations |
+| `--threshold` | `0.8` | Quality score (0–1) to stop early |
+| `--model` | `claude-sonnet-4-6` | Anthropic model ID |
+| `--task-type` | `text` | Hint: `text`, `code`, or `json` |
+| `--output` / `-o` | stdout | Write final text to this file |
+| `--log` | `refine_run.jsonl` | JSONL log of every round |
+
+Prompt resolution order: `--prompt` → `--file` → stdin. Exits with code 1 if none provided.
 
 ## How it works
 
@@ -58,27 +80,24 @@ python -m llm_recursive_refiner \
 
 Each round is appended to a `.jsonl` log file for reproducibility. The terminal renders a live score bar and a final unified diff showing total changes across all revisions.
 
-## What works now (M2)
+## What works now (M3)
+
+- **Full Typer CLI** in `src/llm_recursive_refiner/__main__.py` — all flags wired up
+- **Rich live progress** — spinner + score bar updated each iteration via `on_round` callback
+- **Final summary table** — Rich table showing iter, score, and early-stop status
+- **JSONL log** — written alongside output; auto-named `refine_run.jsonl` when `--log` omitted
+- **10 unit tests** (5 refiner + 5 CLI) — all mocked, no API key required
+
+### Previously (M2)
 
 - **`Refiner` class** in `src/llm_recursive_refiner/refiner.py` — fully functional generate → critique → revise loop
 - **Pydantic models** (`CritiqueResult`, `RoundResult`) in `models.py` as the shared data contract
 - **JSONL logging** — pass `log_path=` to `Refiner` to get one JSON line per round
 - **Early stopping** — loop halts as soon as `score >= threshold`; `RoundResult.stopped_early` is `True`
-- **5 unit tests** in `tests/test_refiner.py` — all mocked, no API key required to run
-
-```python
-from llm_recursive_refiner import Refiner
-
-refiner = Refiner(max_iters=4, threshold=0.8, log_path="run.jsonl")
-results = refiner.run("Write a short essay about photosynthesis.")
-for r in results:
-    print(f"Round {r.iteration}: score={r.critique.score:.2f}")
-print(results[-1].revision)
-```
 
 ### Previously (M1)
 
-- `src/` package layout, dependency set locked in `requirements.txt`, stub entry point, MIT license
+- `src/` package layout, dependency set locked in `requirements.txt`, MIT license
 
 ## Project status
 
@@ -86,6 +105,6 @@ print(results[-1].revision)
 |-----------|-------------|--------|
 | M1 | Scaffold + README | ✅ Done |
 | M2 | Core refine loop + data models | ✅ Done |
-| M3 | Rich terminal UI + CLI wiring | Planned |
-| M4 | Rich terminal UI + `--compare` flag | Planned |
+| M3 | Rich terminal UI + CLI wiring | ✅ Done |
+| M4 | `--compare` flag + diff viewer | Planned |
 | M5 | Task presets + packaging | Planned |
