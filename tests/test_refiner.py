@@ -92,6 +92,33 @@ def test_jsonl_logging(tmp_path):
         assert "stopped_early" in data
 
 
+def test_system_prompt_passed_to_api():
+    """Refiner with system_prompt passes it as system= to messages.create."""
+    generate_text = "First draft."
+    critique_json = '{"score": 0.95, "feedback": "Great."}'
+
+    client = _make_client([generate_text, critique_json])
+    refiner = Refiner(max_iters=1, threshold=0.9, system_prompt="Be concise.", client=client)
+    refiner.run("Write something.")
+
+    # The first call is _generate — check it received system="Be concise."
+    first_call_kwargs = client.messages.create.call_args_list[0].kwargs
+    assert first_call_kwargs.get("system") == "Be concise."
+
+
+def test_critique_rubric_prepended():
+    """Refiner with critique_rubric prepends it to the critique prompt."""
+    critique_json = '{"score": 0.7, "feedback": "OK."}'
+
+    client = _make_client([critique_json])
+    refiner = Refiner(client=client, critique_rubric="Score X on Y. ")
+    refiner._critique("some text")
+
+    call_kwargs = client.messages.create.call_args.kwargs
+    message_content = call_kwargs["messages"][0]["content"]
+    assert message_content.startswith("Score X on Y. ")
+
+
 def test_round_result_fields():
     """RoundResult fields have correct types and value ranges."""
     generate_text = "My draft."
