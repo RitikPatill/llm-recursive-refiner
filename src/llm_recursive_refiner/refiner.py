@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from collections.abc import Callable
@@ -34,17 +35,21 @@ class Refiner:
         results: list[RoundResult] = []
 
         text = self._generate(prompt)
+        prev_text: str | None = None
 
         for i in range(1, self.max_iters + 1):
             critique = self._critique(text)
             stopped_early = critique.score >= self.threshold
+            diff = self._compute_diff(prev_text, text) if prev_text is not None else None
 
             round_result = RoundResult(
                 iteration=i,
                 revision=text,
                 critique=critique,
                 stopped_early=stopped_early,
+                diff=diff,
             )
+            prev_text = text
             results.append(round_result)
 
             if self.log_path:
@@ -114,6 +119,14 @@ class Refiner:
             messages=[{"role": "user", "content": message}],
         )
         return response.content[0].text
+
+    def _compute_diff(self, old: str, new: str) -> str:
+        old_lines = old.splitlines()
+        new_lines = new.splitlines()
+        return "\n".join(difflib.unified_diff(
+            old_lines, new_lines,
+            fromfile="previous", tofile="revised", lineterm=""
+        ))
 
     def _append_log(self, path: str, round_result: RoundResult) -> None:
         with open(path, "a", encoding="utf-8") as f:

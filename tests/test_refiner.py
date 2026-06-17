@@ -137,3 +137,36 @@ def test_round_result_fields():
     assert isinstance(r.critique.score, float)
     assert 0.0 <= r.critique.score <= 1.0
     assert isinstance(r.stopped_early, bool)
+
+
+def test_diff_is_none_for_first_round():
+    """First round result always has diff=None (no previous iteration to compare)."""
+    generate_text = "First draft."
+    critique_json = '{"score": 0.95, "feedback": "Excellent."}'
+
+    client = _make_client([generate_text, critique_json])
+    refiner = Refiner(max_iters=3, threshold=0.9, client=client)
+    results = refiner.run("Write something.")
+
+    assert len(results) == 1
+    assert results[0].diff is None
+
+
+def test_diff_computed_for_subsequent_rounds():
+    """Second round result has a non-empty diff containing unified diff markers."""
+    generate_text = "Line one.\nLine two.\n"
+    critique1_json = '{"score": 0.3, "feedback": "Needs improvement."}'
+    revise_text = "Line one.\nLine TWO updated.\n"
+    critique2_json = '{"score": 0.3, "feedback": "Still needs work."}'
+
+    responses = [generate_text, critique1_json, revise_text, critique2_json]
+    client = _make_client(responses)
+    refiner = Refiner(max_iters=2, threshold=0.9, client=client)
+    results = refiner.run("Write something.")
+
+    assert len(results) == 2
+    assert results[0].diff is None
+    assert results[1].diff is not None
+    assert "---" in results[1].diff
+    assert "+++" in results[1].diff
+    assert "-Line two." in results[1].diff

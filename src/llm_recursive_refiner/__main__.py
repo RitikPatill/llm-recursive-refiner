@@ -5,15 +5,17 @@ import sys
 from pathlib import Path
 
 import typer
+from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.syntax import Syntax
 from rich.table import Table
-from rich import print as rprint
 
 from .models import RoundResult
 from .presets import get_preset
 from .refiner import Refiner
 
 app = typer.Typer(add_completion=False)
+console = Console()
 
 
 class TaskType(str, enum.Enum):
@@ -131,7 +133,7 @@ def main(
             f"{r.critique.score:.3f}",
             "Yes" if r.stopped_early else "No",
         )
-    rprint(table)
+    console.print(table)
 
     # Compare table
     if compare and single_shot_score is not None:
@@ -144,7 +146,13 @@ def main(
         compare_table.add_column("Δ Score", justify="right")
         compare_table.add_row("Single-shot", f"{single_shot_score:.3f}", "")
         compare_table.add_row(f"Refined (N={len(results)})", f"{final_score:.3f}", delta_str)
-        rprint(compare_table)
+        console.print(compare_table)
+
+    # Diff rendering
+    for r in results:
+        if r.diff:
+            console.print(f"\n[bold cyan]── Round {r.iteration} diff ──[/bold cyan]")
+            console.print(Syntax(r.diff, "diff", theme="ansi_dark", line_numbers=False))
 
     # Write final output
     final_text = results[-1].revision if results else ""
