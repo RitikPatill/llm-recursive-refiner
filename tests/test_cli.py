@@ -90,3 +90,47 @@ def test_cli_max_iters_flag(tmp_path):
 
     call_kwargs = MockRefiner.call_args
     assert call_kwargs.kwargs["max_iters"] == 2
+
+
+def test_cli_preset_flag_wires_system_prompt(tmp_path):
+    """--preset improve-essay passes a non-None system_prompt to Refiner."""
+    result_obj = _make_round()
+    with patch("llm_recursive_refiner.__main__.Refiner") as MockRefiner:
+        instance = MockRefiner.return_value
+        instance.run.return_value = [result_obj]
+        result = runner.invoke(
+            app,
+            ["--prompt", "Hello", "--preset", "improve-essay", "--log", str(tmp_path / "run.jsonl")],
+        )
+
+    assert result.exit_code == 0
+    call_kwargs = MockRefiner.call_args.kwargs
+    assert call_kwargs["system_prompt"] is not None
+    assert len(call_kwargs["system_prompt"]) > 0
+
+
+def test_cli_unknown_preset_exits(tmp_path):
+    """--preset with an unknown name exits with code 1."""
+    result = runner.invoke(app, ["--prompt", "Hello", "--preset", "does-not-exist"])
+    assert result.exit_code == 1
+
+
+def test_cli_compare_flag_prints_table(tmp_path):
+    """--compare produces output containing 'Single-shot' and 'Refined'."""
+    result_obj = _make_round(score=0.85)
+    critique_result = MagicMock()
+    critique_result.score = 0.4
+
+    with patch("llm_recursive_refiner.__main__.Refiner") as MockRefiner:
+        instance = MockRefiner.return_value
+        instance.run.return_value = [result_obj]
+        instance._generate.return_value = "Single-shot draft."
+        instance._critique.return_value = critique_result
+        result = runner.invoke(
+            app,
+            ["--prompt", "Hello", "--compare", "--log", str(tmp_path / "run.jsonl")],
+        )
+
+    assert result.exit_code == 0
+    assert "Single-shot" in result.output
+    assert "Refined" in result.output

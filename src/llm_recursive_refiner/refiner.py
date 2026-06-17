@@ -18,6 +18,8 @@ class Refiner:
         log_path: str | None = None,
         client: anthropic.Anthropic | None = None,
         on_round: Callable[[RoundResult], None] | None = None,
+        system_prompt: str | None = None,
+        critique_rubric: str | None = None,
     ):
         self.model = model
         self.max_iters = max_iters
@@ -25,6 +27,8 @@ class Refiner:
         self.log_path = log_path
         self.client = client if client is not None else anthropic.Anthropic()
         self.on_round = on_round
+        self.system_prompt = system_prompt
+        self.critique_rubric = critique_rubric
 
     def run(self, prompt: str) -> list[RoundResult]:
         results: list[RoundResult] = []
@@ -59,16 +63,21 @@ class Refiner:
 
     def _generate(self, prompt: str) -> str:
         message = f"{prompt}\n\nWrite a first draft. Output ONLY the draft, no preamble."
-        response = self.client.messages.create(
+        kwargs: dict = dict(
             model=self.model,
             max_tokens=2048,
             messages=[{"role": "user", "content": message}],
         )
+        if self.system_prompt:
+            kwargs["system"] = self.system_prompt
+        response = self.client.messages.create(**kwargs)
         return response.content[0].text
 
     def _critique(self, text: str) -> CritiqueResult:
+        rubric_prefix = self.critique_rubric if self.critique_rubric else ""
         message = (
-            'Critique the following text. Respond with ONLY valid JSON matching this schema:\n'
+            rubric_prefix
+            + 'Critique the following text. Respond with ONLY valid JSON matching this schema:\n'
             '{"score": <float 0-1>, "feedback": "<actionable weaknesses>"}\n\n'
             f"TEXT:\n{text}"
         )
