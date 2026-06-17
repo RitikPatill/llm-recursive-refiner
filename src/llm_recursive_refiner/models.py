@@ -11,3 +11,4 @@ class RoundResult(BaseModel):
     revision: str
     critique: CritiqueResult
     stopped_early: bool  # True if this round triggered threshold exit
+    diff: str | None = None  # unified diff vs previous iteration; None for iteration 1
