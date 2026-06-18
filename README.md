@@ -1,5 +1,9 @@
 # LLM Recursive Refiner
 
+
+> **Video walkthrough:** https://youtu.be/j7UDJQ8hrg4
+> **60-second overview:** https://youtu.be/gzMUWAEm6kI
+
 > CLI tool that iteratively self-improves LLM outputs through critique-and-revise loops with configurable stopping criteria and diff visualization.
 
 <!-- TODO: replace with a 5-10 second demo gif. Record with ScreenToGif on
